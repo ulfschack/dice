@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Roller</title>
+    <style>
+        canvas { width: 100%; height: 100%; display: block; }
+        body { margin: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div>
+        <label for="dice-type">Dice Type:</label>
+        <select id="dice-type">
+            <option value="d4">d4</option>
+            <option value="d6">d6</option>
+            <option value="d8">d8</option>
+            <option value="d10">d10</option>
+            <option value="d12">d12</option>
+            <option value="d20">d20</option>
+        </select>
+
+        <label for="dice-count">Count:</label>
+        <input type="number" id="dice-count" min="1" value="1">
+
+        <button id="roll-button">Roll</button>
+    </div>
+    <canvas id="scene"></canvas>
+
+    <script type="module">
+        import * as THREE from 'https://esm.sh/three@0.128.0';
+        import { GLTFLoader } from 'https://esm.sh/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
+        import { init, loadDiceModels, animate, rollDice } from './app.js';
+
+        document.getElementById('roll-button').addEventListener('click', rollDice);
+
+        init();
+        loadDiceModels();
+        animate();
+    </script>
+</body>
+</html>
