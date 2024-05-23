@@ -2,19 +2,18 @@ import * as THREE from 'https://esm.sh/three@0.128.0';
 import { GLTFLoader } from 'https://esm.sh/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'https://esm.sh/three@0.128.0/examples/jsm/controls/OrbitControls.js';
 
-let scene, camera, renderer, controls, directionalLight1, directionalLight2, ambientLight;
+let scene, camera, renderer, controls, world;
 let diceModels = {};
 let rolling = false;
-const deceleration = 0.95;
 const minVelocity = 0.01;
 
 function init() {
+    // Three.js setup
     scene = new THREE.Scene();
-
     const aspect = window.innerWidth / window.innerHeight;
     const d = 20;
     camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
-    camera.position.set(30, 20, 30); // Lowered camera position
+    camera.position.set(30, 20, 30);
     camera.lookAt(0, 0, 0);
 
     renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('scene'), antialias: true });
@@ -25,17 +24,33 @@ function init() {
     controls.minZoom = 0.5;
     controls.maxZoom = 2;
 
-    // Add multiple light sources for better contrast
-    directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.4);
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.4);
     directionalLight1.position.set(5, 10, 7.5);
     scene.add(directionalLight1);
 
-    directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
     directionalLight2.position.set(-5, 10, -7.5);
     scene.add(directionalLight2);
 
-    ambientLight = new THREE.AmbientLight(0x888888, 0.8); // Reduced intensity for better contrast
+    const ambientLight = new THREE.AmbientLight(0x888888, 0.8);
     scene.add(ambientLight);
+
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Cannon.js setup
+    world = new CANNON.World();
+    world.gravity.set(0, -9.82, 0); // m/s²
+
+    const groundBody = new CANNON.Body({
+        mass: 0, // mass == 0 makes the body static
+        shape: new CANNON.Plane()
+    });
+    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    world.addBody(groundBody);
 
     window.addEventListener('resize', onWindowResize, false);
 }
@@ -58,10 +73,7 @@ function loadDiceModels() {
     diceTypes.forEach(type => {
         loader.load(`models/${type}.glb`, (gltf) => {
             const model = gltf.scene;
-            if (type === 'd4') {
-                // Rotate the d4 model by 180 degrees around the X-axis
-                model.rotation.x = Math.PI;
-            }
+            console.log(`Loaded model for ${type}`);
             model.traverse((node) => {
                 if (node.isMesh) {
                     node.material = new THREE.MeshStandardMaterial({ color: node.material.color });
@@ -74,15 +86,67 @@ function loadDiceModels() {
     });
 }
 
+function createDiceBody(dice, type) {
+    const vertices = [];
+    const faces = [];
+
+    dice.traverse((node) => {
+        if (node.isMesh) {
+            const geometry = node.geometry;
+            const position = geometry.attributes.position.array;
+            const index = geometry.index.array;
+
+            for (let i = 0; i < position.length; i += 3) {
+                vertices.push(new CANNON.Vec3(position[i], position[i + 1], position[i + 2]));
+            }
+            for (let i = 0; i < index.length; i += 3) {
+                faces.push([index[i], index[i + 1], index[i + 2]]);
+            }
+        }
+    });
+
+    // Create unique vertices
+    const uniqueVertices = Array.from(new Set(vertices.map(v => `${v.x},${v.y},${v.z}`)))
+                                .map(str => {
+                                    const [x, y, z] = str.split(',').map(Number);
+                                    return new CANNON.Vec3(x, y, z);
+                                });
+
+    // Create a map from old vertex indices to new vertex indices
+    const vertexMap = {};
+    vertices.forEach((v, i) => {
+        const key = `${v.x},${v.y},${v.z}`;
+        if (!vertexMap[key]) {
+            vertexMap[key] = uniqueVertices.findIndex(uv => uv.x === v.x && uv.y === v.y && uv.z === v.z);
+        }
+    });
+
+    // Map faces to unique vertices
+    const uniqueFaces = faces.map(face => face.map(index => vertexMap[`${vertices[index].x},${vertices[index].y},${vertices[index].z}`]));
+
+    const shape = new CANNON.ConvexPolyhedron(uniqueVertices, uniqueFaces);
+    const body = new CANNON.Body({ mass: 1 });
+    body.addShape(shape);
+    body.position.set(dice.position.x, dice.position.y, dice.position.z);
+    body.quaternion.set(dice.quaternion.x, dice.quaternion.y, dice.quaternion.z, dice.quaternion.w);
+
+    return body;
+}
+
+
+
+
 function rollDice() {
-    // Remove all previous dice from the scene
+    // Remove all previous dice from the scene and world
     const toRemove = [];
     scene.children.forEach(child => {
-        if (child !== directionalLight1 && child !== directionalLight2 && child !== ambientLight) {
+        if (child.type === 'Group' || (child.type === 'Mesh' && child.material.transparent)) {
             toRemove.push(child);
         }
     });
     toRemove.forEach(child => scene.remove(child));
+
+    world.bodies = world.bodies.filter(body => body.mass === 0);
 
     const diceType = document.getElementById('dice-type').value;
     const diceCount = parseInt(document.getElementById('dice-count').value);
@@ -94,7 +158,7 @@ function rollDice() {
 
     rolling = true;
 
-    const spacing = 15; // Increased spacing for better separation
+    const spacing = 15;
     const positions = [];
 
     for (let i = 0; i < diceCount; i++) {
@@ -102,7 +166,7 @@ function rollDice() {
         do {
             position = new THREE.Vector3(
                 Math.random() * 40 - 20,
-                Math.random() * 4 + 2 + 0.5, // Ensure the dice are above the floor plane
+                Math.random() * 4 + 2 + 0.5,
                 Math.random() * 40 - 20
             );
         } while (positions.some(p => p.distanceTo(position) < spacing));
@@ -117,77 +181,42 @@ function rollDice() {
             Math.random() * Math.PI * 2
         );
         dice.scale.set(1.5, 1.5, 1.5);
-        dice.userData.velocity = new THREE.Vector3(
-            Math.random() * 0.5 - 0.25,
-            Math.random() * 0.5 - 0.25,
-            Math.random() * 0.5 - 0.25
+
+        const body = createDiceBody(dice, diceType);
+        
+        // Apply initial random angular velocity for spin
+        body.angularVelocity.set(
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 10
         );
-        dice.userData.type = diceType;
+        
+        // Apply linear damping and angular damping
+        body.linearDamping = 0.1;
+        body.angularDamping = 0.1;
+
+        world.addBody(body);
+
+        dice.userData.physicsBody = body;
         scene.add(dice);
     }
-}
-
-function snapToNearestFace(dice) {
-    const type = dice.userData.type;
-
-    let orientations;
-    if (type === 'd4') {
-        orientations = [
-            new THREE.Euler(Math.PI / 2, 0, Math.PI / 4),
-            new THREE.Euler(-Math.PI / 2, 0, -Math.PI / 4),
-            new THREE.Euler(0, Math.PI / 2, Math.PI / 4),
-            new THREE.Euler(0, -Math.PI / 2, -Math.PI / 4)
-        ];
-    } else {
-        orientations = [
-            new THREE.Euler(0, 0, 0),
-            new THREE.Euler(Math.PI / 2, 0, 0),
-            new THREE.Euler(Math.PI, 0, 0),
-            new THREE.Euler(-Math.PI / 2, 0, 0),
-            new THREE.Euler(0, Math.PI / 2, 0),
-            new THREE.Euler(0, -Math.PI / 2, 0),
-            new THREE.Euler(0, 0, Math.PI / 2),
-            new THREE.Euler(0, 0, -Math.PI / 2)
-        ];
-    }
-
-    let closest = orientations[0];
-    let minDist = Infinity;
-    orientations.forEach(orientation => {
-        const dist = new THREE.Quaternion().setFromEuler(dice.rotation).angleTo(new THREE.Quaternion().setFromEuler(orientation));
-        if (dist < minDist) {
-            minDist = dist;
-            closest = orientation;
-        }
-    });
-
-    dice.rotation.copy(closest);
-
-    // Adjust for slight inaccuracies
-    dice.rotation.x = Math.round(dice.rotation.x / (Math.PI / 2)) * (Math.PI / 2);
-    dice.rotation.y = Math.round(dice.rotation.y / (Math.PI / 2)) * (Math.PI / 2);
-    dice.rotation.z = Math.round(dice.rotation.z / (Math.PI / 2)) * (Math.PI / 2);
 }
 
 function animate() {
     requestAnimationFrame(animate);
 
     if (rolling) {
+        world.step(1 / 60);
+
         let allStopped = true;
-
         scene.children.forEach(child => {
-            if (child.userData.velocity) {
-                child.rotation.x += child.userData.velocity.x;
-                child.rotation.y += child.userData.velocity.y;
-                child.rotation.z += child.userData.velocity.z;
+            if (child.userData.physicsBody) {
+                const body = child.userData.physicsBody;
+                child.position.copy(body.position);
+                child.quaternion.copy(body.quaternion);
 
-                child.userData.velocity.multiplyScalar(deceleration);
-
-                if (child.userData.velocity.length() > minVelocity) {
+                if (body.velocity.length() > minVelocity || body.angularVelocity.length() > minVelocity) {
                     allStopped = false;
-                } else {
-                    child.userData.velocity.set(0, 0, 0);
-                    snapToNearestFace(child);
                 }
             }
         });
@@ -202,3 +231,11 @@ function animate() {
 }
 
 export { init, loadDiceModels, animate, rollDice };
+
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    loadDiceModels();
+    animate();
+
+    document.getElementById('roll-button').addEventListener('click', rollDice);
+});
