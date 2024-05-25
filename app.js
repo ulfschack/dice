@@ -133,9 +133,6 @@ function createDiceBody(dice, type) {
     return body;
 }
 
-
-
-
 function rollDice() {
     // Remove all previous dice from the scene and world
     const toRemove = [];
@@ -186,14 +183,21 @@ function rollDice() {
         
         // Apply initial random angular velocity for spin
         body.angularVelocity.set(
-            (Math.random() - 0.5) * 10,
-            (Math.random() - 0.5) * 10,
-            (Math.random() - 0.5) * 10
+            (Math.random() - 0.5) * 30,
+            (Math.random() - 0.5) * 30,
+            (Math.random() - 0.5) * 30
+        );
+        
+        // Apply initial random linear velocity
+        body.velocity.set(
+            (Math.random() - 0.5) * 20,
+            (Math.random() - 0.5) * 20,
+            (Math.random() - 0.5) * 20
         );
         
         // Apply linear damping and angular damping
-        body.linearDamping = 0.1;
-        body.angularDamping = 0.1;
+        body.linearDamping = 0.2;
+        body.angularDamping = 0.2;
 
         world.addBody(body);
 
@@ -229,6 +233,7 @@ function animate() {
     controls.update();
     renderer.render(scene, camera);
 }
+
 
 export { init, loadDiceModels, animate, rollDice };
 
