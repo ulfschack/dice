@@ -125,7 +125,7 @@ function createDiceBody(dice, type) {
     const uniqueFaces = faces.map(face => face.map(index => vertexMap[`${vertices[index].x},${vertices[index].y},${vertices[index].z}`]));
 
     const shape = new CANNON.ConvexPolyhedron(uniqueVertices, uniqueFaces);
-    const body = new CANNON.Body({ mass: 1 });
+    const body = new CANNON.Body({ mass: 4 });
     body.addShape(shape);
     body.position.set(dice.position.x, dice.position.y, dice.position.z);
     body.quaternion.set(dice.quaternion.x, dice.quaternion.y, dice.quaternion.z, dice.quaternion.w);
