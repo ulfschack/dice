@@ -155,18 +155,40 @@ function rollDice() {
 
     rolling = true;
 
-    const spacing = 15;
+    const spacing = 5; // Increase spacing to reduce the chance of initial overlaps
     const positions = [];
+
+    // Function to check if a position is valid
+    function isPositionValid(newPosition) {
+        for (const position of positions) {
+            if (position.distanceTo(newPosition) < spacing) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Function to create bounding boxes for initial position validation
+    function createBoundingBox(dice) {
+        const box = new THREE.Box3().setFromObject(dice);
+        return box;
+    }
 
     for (let i = 0; i < diceCount; i++) {
         let position;
+        let attempts = 0;
         do {
             position = new THREE.Vector3(
                 Math.random() * 40 - 20,
                 Math.random() * 4 + 2 + 0.5,
                 Math.random() * 40 - 20
             );
-        } while (positions.some(p => p.distanceTo(position) < spacing));
+            attempts++;
+            if (attempts > 1000) {
+                console.error('Unable to find a valid position for the dice');
+                return;
+            }
+        } while (!isPositionValid(position));
 
         positions.push(position);
 
