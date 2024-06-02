@@ -13,7 +13,7 @@ function init() {
     const aspect = window.innerWidth / window.innerHeight;
     const d = 20;
     camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
-    camera.position.set(30, 20, 30);
+    camera.position.set(30, 30, 30); // Adjust camera position for better view
     camera.lookAt(0, 0, 0);
 
     renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('scene'), antialias: true });
@@ -24,19 +24,19 @@ function init() {
     controls.minZoom = 0.5;
     controls.maxZoom = 2;
 
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.4);
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight1.position.set(5, 10, 7.5);
     scene.add(directionalLight1);
 
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight2.position.set(-5, 10, -7.5);
     scene.add(directionalLight2);
 
-    const ambientLight = new THREE.AmbientLight(0x888888, 0.8);
+    const ambientLight = new THREE.AmbientLight(0x888888, 0.5);
     scene.add(ambientLight);
 
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
@@ -45,15 +45,20 @@ function init() {
     world = new CANNON.World();
     world.gravity.set(0, -9.82, 0); // m/s²
 
-    const groundBody = new CANNON.Body({
-        mass: 0, // mass == 0 makes the body static
-        shape: new CANNON.Plane()
-    });
+    // Increase solver iterations for better stability
+    world.solver.iterations = 10; // Default is 10, try increasing if needed
+    world.solver.tolerance = 0.001; // Default is 0.001
+
+    // Ground body setup
+    const groundShape = new CANNON.Plane();
+    const groundBody = new CANNON.Body({ mass: 0 });
+    groundBody.addShape(groundShape);
     groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
     world.addBody(groundBody);
 
     window.addEventListener('resize', onWindowResize, false);
 }
+
 
 function onWindowResize() {
     const aspect = window.innerWidth / window.innerHeight;
@@ -81,11 +86,13 @@ function loadDiceModels() {
                 }
             });
             diceModels[type] = model;
+            console.log(`Model for ${type} loaded and added to diceModels`);
         }, undefined, (error) => {
             console.error('An error happened loading the model', error);
         });
     });
 }
+
 
 
 function createDiceBody(dice, type) {
@@ -107,26 +114,10 @@ function createDiceBody(dice, type) {
         }
     });
 
-    // Create unique vertices
-    const uniqueVertices = Array.from(new Set(vertices.map(v => `${v.x},${v.y},${v.z}`)))
-                                .map(str => {
-                                    const [x, y, z] = str.split(',').map(Number);
-                                    return new CANNON.Vec3(x, y, z);
-                                });
+    // Add a small collision margin
+    const shape = new CANNON.ConvexPolyhedron(vertices, faces);
+    shape.setMargin(0.05);
 
-    // Create a map from old vertex indices to new vertex indices
-    const vertexMap = {};
-    vertices.forEach((v, i) => {
-        const key = `${v.x},${v.y},${v.z}`;
-        if (!vertexMap[key]) {
-            vertexMap[key] = uniqueVertices.findIndex(uv => uv.x === v.x && uv.y === v.y && uv.z === v.z);
-        }
-    });
-
-    // Map faces to unique vertices
-    const uniqueFaces = faces.map(face => face.map(index => vertexMap[`${vertices[index].x},${vertices[index].y},${vertices[index].z}`]));
-
-    const shape = new CANNON.ConvexPolyhedron(uniqueVertices, uniqueFaces);
     const body = new CANNON.Body({ mass: 5 });
     body.addShape(shape);
     body.position.set(dice.position.x, dice.position.y, dice.position.z);
@@ -135,17 +126,19 @@ function createDiceBody(dice, type) {
     return body;
 }
 
+
 function rollDice() {
     // Remove all previous dice from the scene and world
     const toRemove = [];
     scene.children.forEach(child => {
-        if (child.type === 'Group' || (child.type === 'Mesh' && child.material.transparent)) {
+        if (child.userData.physicsBody) {
             toRemove.push(child);
         }
     });
-    toRemove.forEach(child => scene.remove(child));
-
-    world.bodies = world.bodies.filter(body => body.mass === 0);
+    toRemove.forEach(child => {
+        scene.remove(child);
+        world.removeBody(child.userData.physicsBody);
+    });
 
     const diceType = document.getElementById('dice-type').value;
     const diceCount = parseInt(document.getElementById('dice-count').value);
@@ -157,7 +150,7 @@ function rollDice() {
 
     rolling = true;
 
-    const spacing = 5; // Increase spacing to reduce the chance of initial overlaps
+    const spacing = 2; // Reduce spacing to ensure they are closer together and visible
     const positions = [];
 
     // Function to check if a position is valid
@@ -170,20 +163,14 @@ function rollDice() {
         return true;
     }
 
-    // Function to create bounding boxes for initial position validation
-    function createBoundingBox(dice) {
-        const box = new THREE.Box3().setFromObject(dice);
-        return box;
-    }
-
     for (let i = 0; i < diceCount; i++) {
         let position;
         let attempts = 0;
         do {
             position = new THREE.Vector3(
-                Math.random() * 40 - 20,
-                Math.random() * 4 + 2 + 0.5,
-                Math.random() * 40 - 20
+                Math.random() * 10 - 5, // Ensure they are placed within a smaller range
+                Math.random() * 4 + 2 + 1, // Ensure dice are above the ground
+                Math.random() * 10 - 5
             );
             attempts++;
             if (attempts > 1000) {
@@ -207,16 +194,16 @@ function rollDice() {
         
         // Apply initial random angular velocity for spin
         body.angularVelocity.set(
-            (Math.random() - 0.5) * 30,
-            (Math.random() - 0.5) * 30,
-            (Math.random() - 0.5) * 30
+            (Math.random() - 0.5) * 5, // Reduce the angular velocity
+            (Math.random() - 0.5) * 5,
+            (Math.random() - 0.5) * 5
         );
         
         // Apply initial random linear velocity
         body.velocity.set(
-            (Math.random() - 0.5) * 20,
-            (Math.random() - 0.5) * 20,
-            (Math.random() - 0.5) * 20
+            (Math.random() - 0.5) * 5, // Reduce the linear velocity
+            (Math.random() - 0.5) * 5,
+            (Math.random() - 0.5) * 5
         );
         
         // Apply linear damping and angular damping
@@ -230,11 +217,13 @@ function rollDice() {
     }
 }
 
+
 function animate() {
     requestAnimationFrame(animate);
 
     if (rolling) {
-        world.step(1 / 60);
+        // Increase the number of substeps to improve stability
+        world.step(1 / 60, 1 / 60, 10);
 
         let allStopped = true;
         scene.children.forEach(child => {
@@ -257,6 +246,7 @@ function animate() {
     controls.update();
     renderer.render(scene, camera);
 }
+
 
 
 export { init, loadDiceModels, animate, rollDice };
