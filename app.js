@@ -24,15 +24,15 @@ function init() {
     controls.minZoom = 0.5;
     controls.maxZoom = 2;
 
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.4);
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 5.0); // Increased intensity
     directionalLight1.position.set(5, 10, 7.5);
     scene.add(directionalLight1);
 
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight2.position.set(-5, 10, -7.5);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 5.0); // Increased intensity
+    directionalLight2.position.set(-5, 10, 7.5);
     scene.add(directionalLight2);
 
-    const ambientLight = new THREE.AmbientLight(0x888888, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Increased intensity and color to white
     scene.add(ambientLight);
 
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
@@ -54,6 +54,7 @@ function init() {
 
     window.addEventListener('resize', onWindowResize, false);
 }
+
 
 function onWindowResize() {
     const aspect = window.innerWidth / window.innerHeight;
@@ -157,7 +158,7 @@ function rollDice() {
 
     rolling = true;
 
-    const spacing = 5; // Increase spacing to reduce the chance of initial overlaps
+    const spacing = 10; // Increase spacing to reduce the chance of initial overlaps
     const positions = [];
 
     // Function to check if a position is valid
