@@ -202,7 +202,7 @@ function rollDice() {
             Math.random() * Math.PI * 2,
             Math.random() * Math.PI * 2
         );
-        dice.scale.set(1.5, 1.5, 1.5);
+        dice.scale.set(1.0, 1.0, 1.0);
 
         const body = createDiceBody(dice, diceType);
         
