@@ -18,21 +18,35 @@ function init() {
 
     renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('scene'), antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.physicallyCorrectLights = true;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.5;
+    renderer.gammaFactor = 2.2;
+    renderer.gammaOutput = true;
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = false;
     controls.minZoom = 0.5;
     controls.maxZoom = 2;
 
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.0); // Increased intensity
-    directionalLight1.position.set(5, 10, 7.5);
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 2); // Increased intensity
+    directionalLight1.position.set(0, 7.5, 7.5);
     scene.add(directionalLight1);
 
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 1.0); // Increased intensity
-    directionalLight2.position.set(-5, 10, -7.5);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 2); // Increased intensity
+    directionalLight2.position.set(0, 7.5, -7.5);
     scene.add(directionalLight2);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Increased intensity and color to white
+    const directionalLight3 = new THREE.DirectionalLight(0xffffff, 2); // Increased intensity
+    directionalLight1.position.set(7.5, 7.5, 0);
+    scene.add(directionalLight3);
+
+    const directionalLight4 = new THREE.DirectionalLight(0xffffff, 2); // Increased intensity
+    directionalLight2.position.set(-7.5, 7.5, 0);
+    scene.add(directionalLight4);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); // Increased intensity and color to white
     scene.add(ambientLight);
 
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
@@ -158,7 +172,7 @@ function rollDice() {
 
     rolling = true;
 
-    const spacing = 5; // Increase spacing to reduce the chance of initial overlaps
+    const spacing = 10; // Increase spacing to reduce the chance of initial overlaps
     const positions = [];
 
     // Function to check if a position is valid
@@ -202,7 +216,7 @@ function rollDice() {
             Math.random() * Math.PI * 2,
             Math.random() * Math.PI * 2
         );
-        dice.scale.set(1.5, 1.5, 1.5);
+        dice.scale.set(1.0, 1.0, 1.0);
 
         const body = createDiceBody(dice, diceType);
         

@@ -1,4 +1,5 @@
 import * as THREE from 'https://esm.sh/three@0.128.0';
+import { EXRLoader } from 'https://esm.sh/three@0.128.0/examples/jsm/loaders/EXRLoader.js';
 import { GLTFLoader } from 'https://esm.sh/three@0.128.0/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'https://esm.sh/three@0.128.0/examples/jsm/controls/OrbitControls.js';
 
@@ -18,25 +19,57 @@ function init() {
 
     renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('scene'), antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.physicallyCorrectLights = true;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.5;
+    renderer.outputEncoding = THREE.sRGBEncoding;
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = false;
     controls.minZoom = 0.5;
     controls.maxZoom = 2;
 
-    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 5.0); // Increased intensity
-    directionalLight1.position.set(5, 10, 7.5);
+    // Load HDR environment map
+    const exrLoader = new EXRLoader();
+    exrLoader.load('daySky.exr', function(texture) {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = texture;
+        // Optionally, you can set the scene background to the HDR texture
+        // scene.background = texture;
+    });
+    
+    // Directional lights setup
+    const spotVal = 1;
+    const ambVal = 1
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, spotVal);
+    directionalLight1.position.set(0, 7.5, 7.5);
     scene.add(directionalLight1);
 
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 5.0); // Increased intensity
-    directionalLight2.position.set(-5, 10, 7.5);
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, spotVal);
+    directionalLight2.position.set(0, 7.5, -7.5);
     scene.add(directionalLight2);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Increased intensity and color to white
-    scene.add(ambientLight);
+    const directionalLight3 = new THREE.DirectionalLight(0xffffff, spotVal);
+    directionalLight3.position.set(7.5, 7.5, 0);
+    scene.add(directionalLight3);
 
+    const directionalLight4 = new THREE.DirectionalLight(0xffffff, spotVal);
+    directionalLight4.position.set(-7.5, 7.5, 0);
+    scene.add(directionalLight4);
+    
+    // Ambient light setup
+    const ambientLight = new THREE.AmbientLight(0xffffff, ambVal);
+    scene.add(ambientLight);
+    
+    // Transparent floor setup
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x808080,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0
+    });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
