@@ -41,7 +41,7 @@ function init() {
     
     // Directional lights setup
     const spotVal = 1;
-    const ambVal = 1
+    const ambVal = 1;
     const directionalLight1 = new THREE.DirectionalLight(0xffffff, spotVal);
     directionalLight1.position.set(0, 7.5, 7.5);
     scene.add(directionalLight1);
