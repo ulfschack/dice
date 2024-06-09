@@ -40,22 +40,22 @@ function init() {
     });
     
     // Directional lights setup
-    const spotVal = 1;
-    const ambVal = 1;
+    const spotVal = 3;
+    const ambVal = 1.5;
     const directionalLight1 = new THREE.DirectionalLight(0xffffff, spotVal);
-    directionalLight1.position.set(0, 7.5, 7.5);
+    directionalLight1.position.set(0, 15, 7.5);
     scene.add(directionalLight1);
 
     const directionalLight2 = new THREE.DirectionalLight(0xffffff, spotVal);
-    directionalLight2.position.set(0, 7.5, -7.5);
+    directionalLight2.position.set(0, 15, -7.5);
     scene.add(directionalLight2);
 
     const directionalLight3 = new THREE.DirectionalLight(0xffffff, spotVal);
-    directionalLight3.position.set(7.5, 7.5, 0);
+    directionalLight3.position.set(7.5,15, 0);
     scene.add(directionalLight3);
 
     const directionalLight4 = new THREE.DirectionalLight(0xffffff, spotVal);
-    directionalLight4.position.set(-7.5, 7.5, 0);
+    directionalLight4.position.set(-7.5,15, 0);
     scene.add(directionalLight4);
     
     // Ambient light setup
@@ -71,12 +71,13 @@ function init() {
         opacity: 0
     });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.position.y = -4;
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
 
     // Cannon.js setup
     world = new CANNON.World();
-    world.gravity.set(0, -9.82, 0); // m/s²
+    world.gravity.set(0, -30, 0); // m/s²
 
     const groundBody = new CANNON.Body({
         mass: 0, // mass == 0 makes the body static
@@ -161,7 +162,7 @@ function createDiceBody(dice, type) {
     const uniqueFaces = faces.map(face => face.map(index => vertexMap[`${vertices[index].x},${vertices[index].y},${vertices[index].z}`]));
 
     const shape = new CANNON.ConvexPolyhedron(uniqueVertices, uniqueFaces);
-    const body = new CANNON.Body({ mass: 5 });
+    const body = new CANNON.Body({ mass: 100 });
     body.addShape(shape);
     body.position.set(dice.position.x, dice.position.y, dice.position.z);
     body.quaternion.set(dice.quaternion.x, dice.quaternion.y, dice.quaternion.z, dice.quaternion.w);
@@ -184,7 +185,7 @@ function rollDice() {
     const diceType = document.getElementById('dice-type').value;
     const diceCount = parseInt(document.getElementById('dice-count').value);
 
-    if (!diceModels[diceType]) {
+    if (!diceModels[diceType]) { // diceType <- scroll-boxen
         console.error(`Model for ${diceType} not loaded yet.`);
         return;
     }
@@ -240,17 +241,19 @@ function rollDice() {
         const body = createDiceBody(dice, diceType);
         
         // Apply initial random angular velocity for spin
+        const angleSpeed = 20;
+        const linSpeed = 50;
         body.angularVelocity.set(
-            (Math.random() - 0.5) * 30,
-            (Math.random() - 0.5) * 30,
-            (Math.random() - 0.5) * 30
+            Math.random() * angleSpeed,
+            Math.random() * angleSpeed,
+            Math.random() * angleSpeed
         );
         
         // Apply initial random linear velocity
         body.velocity.set(
-            (Math.random() - 0.5) * 20,
-            (Math.random() - 0.5) * 20,
-            (Math.random() - 0.5) * 20
+            Math.random() * 7,
+            Math.random() * 30,
+            Math.random() * 7
         );
         
         // Apply linear damping and angular damping
