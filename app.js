@@ -26,7 +26,7 @@ function init() {
     renderer.outputEncoding = THREE.sRGBEncoding;
 
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.enablePan = false;
+    controls.enablePan = true;
     controls.minZoom = 0.5;
     controls.maxZoom = 2;
 
@@ -103,7 +103,7 @@ function onWindowResize() {
 
 function loadDiceModels() {
     const loader = new GLTFLoader();
-    const diceTypes = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
+    const diceTypes = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd24'];
 
     diceTypes.forEach(type => {
         loader.load(`models/${type}.glb`, (gltf) => {
@@ -192,7 +192,7 @@ function rollDice() {
 
     rolling = true;
 
-    const spacing = 10; // Increase spacing to reduce the chance of initial overlaps
+    const spacing = 20; // Increase spacing to reduce the chance of initial overlaps
     const positions = [];
 
     // Function to check if a position is valid
@@ -206,10 +206,6 @@ function rollDice() {
     }
 
     // Function to create bounding boxes for initial position validation
-    function createBoundingBox(dice) {
-        const box = new THREE.Box3().setFromObject(dice);
-        return box;
-    }
 
     for (let i = 0; i < diceCount; i++) {
         let position;
@@ -241,18 +237,18 @@ function rollDice() {
         const body = createDiceBody(dice, diceType);
         
         // Apply initial random angular velocity for spin
-        const angleSpeed = 20;
+        const angleSpeed = 40;
         const linSpeed = 50;
         body.angularVelocity.set(
-            Math.random() * angleSpeed,
-            Math.random() * angleSpeed,
-            Math.random() * angleSpeed
+        (Math.random()-0.5) * angleSpeed,
+        (Math.random()-0.5) * angleSpeed,
+        (Math.random()-0.5) * angleSpeed
         );
         
         // Apply initial random linear velocity
         body.velocity.set(
             Math.random() * 7,
-            Math.random() * 30,
+            (Math.random() + .5) * 30,
             Math.random() * 7
         );
         
