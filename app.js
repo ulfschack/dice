@@ -12,9 +12,9 @@ function init() {
     // Three.js setup
     scene = new THREE.Scene();
     const aspect = window.innerWidth / window.innerHeight;
-    const d = 20;
+    const d = 30;
     camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
-    camera.position.set(30, 20, 30);
+    camera.position.set(40, 50, 40);
     camera.lookAt(0, 0, 0);
 
     renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('scene'), antialias: true });
@@ -33,28 +33,33 @@ function init() {
     // Load HDR environment map
     const exrLoader = new EXRLoader();
     exrLoader.load('daySky.exr', function(texture) {
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        scene.environment = texture;
-        // Optionally, you can set the scene background to the HDR texture
-        // scene.background = texture;
-    });
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    
+    // Flip the texture vertically
+    
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.y = -1; // Flip vertically
+    scene.environment = texture;
+    
+});
     
     // Directional lights setup
     const spotVal = 3;
-    const ambVal = 1.5;
+    const ambVal = 0.8;
     const directionalLight1 = new THREE.DirectionalLight(0xffffff, spotVal);
-    directionalLight1.position.set(0, 15, 7.5);
+    directionalLight1.position.set(0, 8, 0);
     scene.add(directionalLight1);
 
     const directionalLight2 = new THREE.DirectionalLight(0xffffff, spotVal);
-    directionalLight2.position.set(0, 15, -7.5);
+    directionalLight2.position.set(0, 15, 15);
     scene.add(directionalLight2);
 
     const directionalLight3 = new THREE.DirectionalLight(0xffffff, spotVal);
-    directionalLight3.position.set(7.5,15, 0);
+    directionalLight3.position.set(0,15, -15);
     scene.add(directionalLight3);
 
-    const directionalLight4 = new THREE.DirectionalLight(0xffffff, spotVal);
+    const directionalLight4 = new THREE.DirectionalLight(0xffffff, 0);
     directionalLight4.position.set(-7.5,15, 0);
     scene.add(directionalLight4);
     
@@ -77,7 +82,7 @@ function init() {
 
     // Cannon.js setup
     world = new CANNON.World();
-    world.gravity.set(0, -30, 0); // m/s²
+    world.gravity.set(0, -50, 0); // m/s²
 
     const groundBody = new CANNON.Body({
         mass: 0, // mass == 0 makes the body static
@@ -232,7 +237,7 @@ function rollDice() {
             Math.random() * Math.PI * 2,
             Math.random() * Math.PI * 2
         );
-        dice.scale.set(1.0, 1.0, 1.0);
+        dice.scale.set(2.0, 2.0, 2.0);
 
         const body = createDiceBody(dice, diceType);
         
@@ -247,9 +252,9 @@ function rollDice() {
         
         // Apply initial random linear velocity
         body.velocity.set(
-            Math.random() * 7,
-            (Math.random() + .5) * 30,
-            Math.random() * 7
+            Math.random() * 15,
+            (Math.random() + .5) * 50,
+            Math.random() * 15
         );
         
         // Apply linear damping and angular damping
